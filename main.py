@@ -3,7 +3,7 @@ import os
 import xmltodict
 import json
 import pprint
-
+import cv2
 from PIL import Image
 
 
@@ -12,14 +12,14 @@ pp = pprint.PrettyPrinter(indent=4)
 
 
 # Look for XML files and parses then as if they were Pascal VOC Files
-def process():
+def process(filename):
     # Finds all XML files on data/ and append to list
     pascal_voc_contents = []
     os.chdir("data")
 
     print("Found {} files in data directory!".format(
-        str(len(glob.glob("*.xml")))))
-    for file in glob.glob("*.xml"):
+        str(len(glob.glob(filename+".xml")))))
+    for file in glob.glob(filename+".xml"):
         f_handle = open(file, 'r')
         print("Parsing file '{}'...".format(file))
         pascal_voc_contents.append(xmltodict.parse(f_handle.read()))
@@ -30,13 +30,14 @@ def process():
         # If there's a corresponding file in the folder,
         # process the images and save to output folder
         if os.path.isfile(image_file):
-            extractDataset(index['annotation'])
+           path=  extractDataset(index['annotation'],filename)
+           return path
         else:
-            print("Image file '{}' not found, skipping file...".format(image_file))
+            return "something gone wrong"
 
 
 # Extract image samples and save to output dir
-def extractDataset(dataset):
+def extractDataset(dataset,filename):
     print("Found {} objects on image '{}'...".format(
         len(dataset['object']), dataset['filename']))
 
@@ -53,21 +54,30 @@ def extractDataset(dataset):
     sample_preamble = save_dir + "/" + dataset['filename'].split('.')[0] + "_"
     # Image counter
     i = 0
-
+    window_name = 'Image'
+    color = (255, 0, 0)
+    thickness = 2
+    
+    img = cv2.imread(dataset['filename'])
     # Run through each item and save cut image to output folder
     for item in dataset['object']:
         # Convert str to integers
         bndbox = dict([(a, int(b)) for (a, b) in item['bndbox'].items()])
-        # Crop image
-        im = img.crop((bndbox['xmin'], bndbox['ymin'],
-                       bndbox['xmax'], bndbox['ymax']))
         # Save
-        im.save(sample_preamble + str(i) + '.jpg')
+        im = cv2.rectangle(img, (bndbox['xmin'],bndbox['ymin']), (bndbox['xmax'],bndbox['ymax']), color, thickness)
+        # im = cv2.rectangle(img, (117,237), (274,517), color, thickness)
+        cv2.putText(im, item['name'], (bndbox['xmin'], bndbox['ymin']-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+        # cv2.imshow(window_name, im) 
+        # filename ='savedImage.jpg'
+        filename= filename+'.jpg'
+        # Using cv2.imwrite() method
+        # Saving the image
+        
         i = i + 1
+    directory =r"D:\PascalVOC-to-Images\static"
+    os.chdir(directory)
+    cv2.imwrite(filename, img)
+    return filename
 
-if __name__ == '__main__':
-    print("\n------------------------------------")
-    print("----- PascalVOC-to-Images v0.1 -----")
-    print("Created by Giovanni Cimolin da Silva")
-    print("------------------------------------\n")
-    process()
+
+
